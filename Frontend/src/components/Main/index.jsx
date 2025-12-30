@@ -17,8 +17,12 @@ import {
   Modal,
   MenuItem,
   Alert,
-  CircularProgress
+  CircularProgress,
+  InputAdornment,
+  Chip
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import PersonIcon from '@mui/icons-material/Person';
 import { fetchTasks, addTask, updateTask, deleteTask } from '../../features/taskSlice';
 
 const style = {
@@ -43,6 +47,10 @@ const Main = () => {
   const [editModal, setEditModal] = useState(false);
   const [taskDetailModal, setTaskDetailModal] = useState(false);
 
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   // Form states
   const [data, setData] = useState({
     title: '',
@@ -55,6 +63,14 @@ const Main = () => {
   useEffect(() => {
     dispatch(fetchTasks());
   }, [dispatch]);
+
+  // Filter and search tasks
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         task.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleInput = (e) => {
     setData({ ...data, [e.target.name]: e.target.value });
@@ -141,6 +157,14 @@ const Main = () => {
     { value: 'completed', label: 'Completed' }
   ];
 
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'completed': return 'success';
+      case 'in-progress': return 'warning';
+      default: return 'info';
+    }
+  };
+
   return (
     <>
       <Box sx={{ flexGrow: 1 }}>
@@ -149,6 +173,14 @@ const Main = () => {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Task Management App
             </Typography>
+            <Button 
+              color="inherit" 
+              startIcon={<PersonIcon />}
+              onClick={() => navigate('/profile')}
+              sx={{ mr: 2 }}
+            >
+              Profile
+            </Button>
             <Button color="inherit" onClick={handleLogout}>
               Logout
             </Button>
@@ -157,13 +189,57 @@ const Main = () => {
       </Box>
 
       <Container sx={{ mt: 5 }}>
-        <Button
-          variant="contained"
-          onClick={() => setTaskModal(true)}
-          sx={{ mb: 4 }}
-        >
-          Create Task
-        </Button>
+        {/* Action Bar */}
+        <Box sx={{ mb: 4 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <Button
+                variant="contained"
+                onClick={() => setTaskModal(true)}
+                fullWidth
+              >
+                Create Task
+              </Button>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                select
+                fullWidth
+                label="Filter by Status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="all">All Tasks</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="in-progress">In Progress</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* Task Stats */}
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Chip label={`Total: ${tasks.length}`} color="primary" />
+          <Chip label={`Pending: ${tasks.filter(t => t.status === 'pending').length}`} color="info" />
+          <Chip label={`In Progress: ${tasks.filter(t => t.status === 'in-progress').length}`} color="warning" />
+          <Chip label={`Completed: ${tasks.filter(t => t.status === 'completed').length}`} color="success" />
+        </Box>
 
         {status === 'loading' && (
           <Box display="flex" justifyContent="center" my={4}>
@@ -319,15 +395,20 @@ const Main = () => {
             <Typography variant="body1" sx={{ mb: 2 }}>
               {selectedTask?.description}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Status: {selectedTask?.status}
+            <Chip 
+              label={selectedTask?.status} 
+              color={getStatusColor(selectedTask?.status)}
+              sx={{ mb: 2 }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Created: {new Date(selectedTask?.createdAt).toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Created: {new Date(selectedTask?.createdAt).toLocaleDateString()}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Updated: {new Date(selectedTask?.updatedAt).toLocaleString()}
             </Typography>
             <Button
               variant="contained"
-              sx={{ mt: 2 }}
+              fullWidth
               onClick={() => setTaskDetailModal(false)}
             >
               Close
@@ -337,11 +418,11 @@ const Main = () => {
 
         {/* Tasks Grid */}
         <Grid container spacing={3}>
-          {tasks.length > 0 ? (
-            tasks.map((task) => (
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map((task) => (
               <Grid item xs={12} sm={6} md={4} key={task._id}>
-                <Card>
-                  <CardContent>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" noWrap sx={{ mb: 1 }}>
                       {task.title}
                     </Typography>
@@ -349,7 +430,7 @@ const Main = () => {
                       variant="body2" 
                       color="text.secondary"
                       sx={{
-                        mb: 1,
+                        mb: 2,
                         display: '-webkit-box',
                         WebkitLineClamp: 3,
                         WebkitBoxOrient: 'vertical',
@@ -358,16 +439,12 @@ const Main = () => {
                     >
                       {task.description}
                     </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        mb: 2,
-                        color: task.status === 'completed' ? 'success.main' : 
-                               task.status === 'in-progress' ? 'warning.main' : 'info.main'
-                      }}
-                    >
-                      Status: {task.status}
-                    </Typography>
+                    <Chip 
+                      label={task.status}
+                      color={getStatusColor(task.status)}
+                      size="small"
+                      sx={{ mb: 2 }}
+                    />
                     <Stack direction="row" spacing={1}>
                       <Button
                         size="small"
@@ -400,7 +477,9 @@ const Main = () => {
           ) : (
             <Grid item xs={12}>
               <Typography variant="body1" textAlign="center">
-                No tasks found. Create your first task!
+                {searchQuery || statusFilter !== 'all' 
+                  ? 'No tasks match your search criteria' 
+                  : 'No tasks found. Create your first task!'}
               </Typography>
             </Grid>
           )}

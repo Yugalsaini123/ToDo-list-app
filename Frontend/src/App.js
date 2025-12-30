@@ -6,6 +6,7 @@ import { store } from './store';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Main from './components/Main';
+import Profile from './components/Profile';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -20,6 +21,14 @@ function App() {
           element={
             <PrivateRoute>
               <Main />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Profile />
             </PrivateRoute>
           }
         />
